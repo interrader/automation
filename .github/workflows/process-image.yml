@@ -1,0 +1,45 @@
+
+name: Process Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_url:
+        description: 'Completed Creatomate PNG render URL'
+        required: true
+        type: string
+      asset_name:
+        description: 'Unique name, e.g. octopus_scene_01'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Download and standardize image
+        env:
+          IMAGE_URL: ${{ inputs.image_url }}
+          ASSET_NAME: ${{ inputs.asset_name }}
+        run: python scripts/process_url.py --url "$IMAGE_URL" --name "$ASSET_NAME"
+
+      - name: Commit processed asset
+        env:
+          ASSET_NAME: ${{ inputs.asset_name }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/
+          git commit -m "Processed image: $ASSET_NAME" || exit 0
+          git push
